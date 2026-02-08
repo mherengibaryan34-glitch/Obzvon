@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>obzvon.net</title>
+<style>
+body, html {margin:0; padding:0; font-family: Arial,sans-serif; height:100%; background: linear-gradient(135deg, #e0f7ff, #c2e9ff); background-size: 400% 400%; animation: gradientBG 15s ease infinite;}
+@keyframes gradientBG {0%{background-position:0% 50%;} 50%{background-position:100% 50%;} 100%{background-position:0% 50%;}}
+.page {display:none; padding:20px; margin-top:80px; opacity:0; transition: opacity 0.5s ease;}
+.page.active {display:block; opacity:1;}
+header{background:#0b4f8c; color:white; display:flex; justify-content:space-between; align-items:center; padding:15px 20px; position:fixed; width:100%; top:0; z-index:100; box-shadow:0 4px 6px rgba(0,0,0,0.1);}
+header h1{margin:0;font-size:24px;text-align:center; flex:1;}
+.menu-toggle{display:block; cursor:pointer; font-size:28px; font-weight:bold; user-select:none; transition: transform 0.3s ease;}
+.menu-toggle.active{transform: rotate(90deg);}
+#menu{position: fixed; top:60px; right:-250px; width:200px; background:#0b4f8c; flex-direction:column; padding:15px; border-radius:0 0 0 8px; box-shadow:-4px 4px 12px rgba(0,0,0,0.2); transition: right 0.3s ease; z-index:999; display:flex;}
+#menu.show{right:0;}
+#menu a{color:white; text-decoration:none; margin:10px 0; font-weight:bold; cursor:pointer; transition:0.3s;}
+#menu a:hover{text-decoration:underline;}
+button, .small-btn {background: linear-gradient(135deg,#1a73e8,#42a5f5); color:white; border:none; padding:12px 24px; border-radius:12px; cursor:pointer; font-weight:bold; font-size:16px; transition:all 0.3s ease; box-shadow:0 4px 10px rgba(0,0,0,0.2); margin:5px 0;}
+button:hover, .small-btn:hover{background: linear-gradient(135deg,#42a5f5,#1a73e8); transform: translateY(-2px); box-shadow:0 6px 12px rgba(0,0,0,0.25);}
+.small-btn.danger{background: linear-gradient(135deg,#e74c3c,#c0392b);}
+.small-btn.danger:hover{background: linear-gradient(135deg,#c0392b,#e74c3c); transform: translateY(-2px); box-shadow:0 6px 12px rgba(0,0,0,0.25);}
+input, textarea{border:1px solid #ccc; border-radius:12px; padding:10px; transition:all 0.3s ease; width:100%; margin:5px 0;}
+input:focus, textarea:focus{border-color:#1a73e8; box-shadow:0 0 8px rgba(26,115,232,0.5); outline:none;}
+table{width:100%;border-collapse:collapse;margin-bottom:20px;}
+th,td{border:1px solid #ccc;padding:8px;text-align:left;}
+th{background:#0b4f8c;color:white;}
+.chat-box{border:1px solid #ccc;border-radius:8px;padding:10px;height:200px;overflow-y:auto;background:#fff;margin-bottom:10px;}
+footer{background:#0b4f8c;color:white;text-align:center;padding:30px 20px;margin-top:50px;}
+footer a{color:white;text-decoration:none;margin:0 10px;}
+footer a:hover{text-decoration:underline;}
+.notification{background:#ffd700; padding:8px; border-radius:8px; margin:6px 0;}
+</style>
+</head>
+<body>
+
+<header>
+<h1>obzvon.net</h1>
+<div class="menu-toggle" onclick="toggleMenu()">☰</div>
+</header>
+
+<nav id="menu">
+<a onclick="go('home')">Главная</a>
+<a onclick="go('shop')">Магазин</a>
+<a onclick="go('profile')">Профиль</a>
+<a onclick="go('admin')">Админ</a>
+<a onclick="go('loginPage')">Вход</a>
+</nav>
+
+<section class="page active" id="home" style="text-align:center;margin-top:100px;">
+<h2>Obzvon.net — Пройдем за тебя любой обзвон</h2>
+<button onclick="go('shop')">Перейти к заказам</button>
+</section>
+
+<section class="page" id="shop">
+<h2>Наши услуги</h2>
+<div id="products"></div>
+</section>
+
+<section class="page" id="profile">
+<h2>Личный кабинет</h2>
+<div id="notifications"></div>
+<div id="profileBox"></div>
+<h3>Мои заказы</h3>
+<div id="myOrders"></div>
+</section>
+
+<section class="page" id="admin">
+<h2>Админ-панель</h2>
+<div id="adminContent"></div>
+</section>
+
+<section class="page" id="loginPage">
+<h2>Вход / Регистрация</h2>
+<input id="nick" placeholder="Ник">
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="Пароль">
+<button class="small-btn" onclick="login()">Войти</button>
+<button class="small-btn" onclick="register()">Регистрация</button>
+<p id="loginMsg" style="color:red;"></p>
+</section>
+
+<footer>
+<p>Поддержка: <a href="#">Telegram</a> | <a href="#">Discord</a> | <a href="#">VK</a></p>
+<p>© 2026 obzvon.net</p>
+</footer>
+
+<script>
+// LocalStorage init
+if(!localStorage.getItem('users')) localStorage.setItem('users',JSON.stringify([]));
+if(!localStorage.getItem('orders')) localStorage.setItem('orders',JSON.stringify([]));
+
+// Products
+const products=[{name:'Обзвон Стандарт',price:100},{name:'Обзвон Премиум',price:250},{name:'Обзвон VIP',price:500}];
+
+// Menu toggle
+function toggleMenu(){
+  const menu=document.getElementById('menu');
+  const toggle=document.querySelector('.menu-toggle');
+  menu.classList.toggle('show');
+  toggle.classList.toggle('active');
+}
+
+// Current user
+let current=null;
+
+window.onload = function(){
+  const saved = localStorage.getItem('currentUser');
+  if(saved){
+    current = JSON.parse(saved);
+    showProfile();
+  }
+}
+
+// Pages
+function go(page){
+  document.querySelectorAll('.page').forEach(p=>{
+    if(p.classList.contains('active')){
+      p.style.opacity=0;
+      setTimeout(()=>p.classList.remove('active'), 300);
+    }
+  });
+  setTimeout(()=>{
+    const next=document.getElementById(page);
+    next.classList.add('active');
+    setTimeout(()=>next.style.opacity=1,50);
+  },300);
+
+  if(page=='shop') renderProducts();
+  if(page=='profile') showProfile();
+  if(page=='admin') renderAdmin();
+}
+
+// Registration
+function register(){
+  const nick=document.getElementById('nick').value.trim();
+  const email=document.getElementById('email').value.trim();
+  const pass=document.getElementById('password').value.trim();
+  const users=JSON.parse(localStorage.getItem('users'));
+  if(!nick || !email || !pass){loginMsg.textContent='Заполните все поля'; return;}
+  if(users.find(u=>u.email===email)){loginMsg.textContent='Пользователь с этим email уже существует'; return;}
+  users.push({nick,email,password:pass,coins:0,role:'user',banned:false,notifications:[]});
+  localStorage.setItem('users',JSON.stringify(users));
+  loginMsg.textContent='Регистрация успешна! Теперь войдите';
+}
+
+// Login
+function login(){
+  const email=document.getElementById('email').value.trim();
+  const pass=document.getElementById('password').value.trim();
+  const users=JSON.parse(localStorage.getItem('users'));
+  const user=users.find(u=>u.email===email && u.password===pass);
+  if(!user){loginMsg.textContent='Неверный email или пароль'; return;}
+  if(user.banned){loginMsg.textContent='Вы забанены'; return;}
+  current=user;
+  localStorage.setItem('currentUser', JSON.stringify(current));
+  loginMsg.textContent='';
+  go('home');
+  showProfile();
+}
+
+// Render products
+function renderProducts(){
+  const box=document.getElementById('products');
+  box.innerHTML='';
+  products.forEach(p=>{
+    const div=document.createElement('div');
+    div.className='product';
+    div.innerHTML=`<h4>${p.name}</h4><p>${p.price} монет</p><button onclick="order('${p.name}',${p.price})">Заказать</button>`;
+    box.appendChild(div);
+  });
+}
+
+// Profile
+function showProfile(){
+  if(!current){go('loginPage'); return;}
+  // Notifications
+  const notifDiv = document.getElementById('notifications');
+  notifDiv.innerHTML='';
+  if(current.notifications && current.notifications.length>0){
+    current.notifications.forEach(n=>{
+      const div = document.createElement('div');
+      div.className='notification';
+      div.textContent=n;
+      notifDiv.appendChild(div);
+    });
+    // Очистка после показа
+    current.notifications=[];
+    updateUser(current,false);
+  }
+
+  profileBox.innerHTML=`<b>Ник:</b> ${current.nick}<br><b>Email:</b> ${current.email}<br><b>Баланс:</b> ${current.coins}<br><b>Роль:</b> ${current.role}`;
+  const orders=JSON.parse(localStorage.getItem('orders')).filter(o=>o.user===current.nick);
+  const myOrdersDiv=document.getElementById('myOrders');
+  myOrdersDiv.innerHTML='';
+  orders.forEach((o,i)=>{
+    const div=document.createElement('div');
+    div.style.border='1px solid #ccc'; div.style.padding='6px'; div.style.margin='6px 0';
+    div.innerHTML=`<b>${o.product}</b> — ${o.time} <i>(${o.status})</i>`;
+    if(o.status==='taken'){ 
+      div.innerHTML+=`<div class="chat-box" id="chat${i}"></div>
+      <textarea id="msg${i}" placeholder="Напишите сообщение"></textarea>
+      <button class="small-btn" onclick="sendMsg(${i})">Отправить</button>
+      <button class="small-btn danger" onclick="endChat(${i})">Закончить разговор</button>`;
+    }
+    myOrdersDiv.appendChild(div);
+  });
+}
+
+// Order
+function order(name,price){
+  if(!current){alert('Сначала войдите');go('loginPage'); return;}
+  if(current.coins<price){alert('Недостаточно монет'); return;}
+  current.coins-=price;
+  updateUser(current);
+  const orders=JSON.parse(localStorage.getItem('orders'));
+  orders.push({user:current.nick,product:name,time:new Date().toLocaleString(),status:'new',chat:[]});
+  localStorage.setItem('orders',JSON.stringify(orders));
+  alert('Заказ оформлен!');
+  showProfile();
+}
+
+// Admin
+function renderAdmin(){
+  if(!current||current.nick!=='gg1love'){adminContent.innerHTML='<p>Доступ запрещен</p>'; return;}
+  const users=JSON.parse(localStorage.getItem('users'));
+  const orders=JSON.parse(localStorage.getItem('orders'));
+  let html=`<h3>Выдать монеты</h3><input id="coinUser" placeholder="Ник"><input id="coinAmount" type="number" placeholder="Количество"><button class="small-btn" onclick="giveCoins()">Выдать</button>`;
+  html+=`<button class="small-btn danger" onclick="resetCoins()">Обнулить все монеты</button>`;
+  html+=`<h3>Назначить модератора</h3><input id="modUser" placeholder="Ник"><button class="small-btn" onclick="makeMod()">Сделать модером</button>`;
+  html+=`<h3>Забанить / Разбанить пользователя</h3><input id="banUser" placeholder="Ник"><button class="small-btn danger" onclick="banUserF()">Забанить</button> <button class="small-btn" onclick="unbanUser()">Разбанить</button>`;
+  html+=`<h3>Список заказов</h3><table><tr><th>Пользователь</th><th>Товар</th><th>Время</th><th>Статус</th><th>Действие</th></tr>`;
+  orders.forEach((o,i)=>{
+    let action='';
+    if(o.status==='new') action=`<button class="small-btn" onclick="takeOrder(${i})">Взять заказ</button> <button class="small-btn danger" onclick="rejectOrder(${i})">Отказать</button>`;
+    html+=`<tr><td>${o.user}</td><td>${o.product}</td><td>${o.time}</td><td>${o.status}</td><td>${action}</td></tr>`;
+  });
+  html+='</table>';
+  html+=`<h3>Статистика пользователей</h3><table><tr><th>Ник</th><th>Email</th><th>Баланс</th><th>Роль</th></tr>`;
+  users.forEach(u=>{html+=`<tr><td>${u.nick}</td><td>${u.email}</td><td>${u.coins}</td><td>${u.role}</td></tr>`;});
+  html+='</table>';
+  adminContent.innerHTML=html;
+}
+
+// Admin functions
+function updateUser(u,render=true){
+  const users=JSON.parse(localStorage.getItem('users'));
+  const idx=users.findIndex(x=>x.email===u.email);
+  users[idx]=u;
+  localStorage.setItem('users',JSON.stringify(users));
+  current=u;
+  localStorage.setItem('currentUser', JSON.stringify(current));
+  if(render) showProfile();
+  if(current.nick==='gg1love') renderAdmin();
+}
+
+function giveCoins(){const nick=document.getElementById('coinUser').value.trim();const amount=Number(document.getElementById('coinAmount').value);const users=JSON.parse(localStorage.getItem('users'));const user=users.find(u=>u.nick===nick); if(user){user.coins+=amount;updateUser(user);}}
+function resetCoins(){const users=JSON.parse(localStorage.getItem('users')); users.forEach(u=>u.coins=0); localStorage.setItem('users',JSON.stringify(users)); if(current.nick==='gg1love') renderAdmin(); showProfile();}
+function makeMod(){const nick=document.getElementById('modUser').value.trim(); const users=JSON.parse(localStorage.getItem('users')); const user=users.find(u=>u.nick===nick); if(user){user.role='moderator'; user.notifications.push('Вам выдана роль модератора'); updateUser(user,false); renderAdmin();}}
+function banUserF(){const nick=document.getElementById('banUser').value.trim(); const users=JSON.parse(localStorage.getItem('users')); const user=users.find(u=>u.nick===nick); if(user){user.banned=true; updateUser(user,false); renderAdmin();}}
+function unbanUser(){const nick=document.getElementById('banUser').value.trim(); const users=JSON.parse(localStorage.getItem('users')); const user=users.find(u=>u.nick===nick); if(user){user.banned=false; updateUser(user,false); renderAdmin();}}
+function takeOrder(i){const orders=JSON.parse(localStorage.getItem('orders')); orders[i].status='taken'; orders[i].moderator=current.nick; localStorage.setItem('orders',JSON.stringify(orders)); renderAdmin();}
+function rejectOrder(i){const orders=JSON.parse(localStorage.getItem('orders')); orders[i].status='rejected'; localStorage.setItem('orders',JSON.stringify(orders)); renderAdmin();}
+
+// Chat
+function sendMsg(i){const orders=JSON.parse(localStorage.getItem('orders')); const txt=document.getElementById('msg'+i).value.trim(); if(!txt) return; orders[i].chat.push({from:current.nick,msg:txt,time:new Date().toLocaleTimeString()}); localStorage.setItem('orders',JSON.stringify(orders)); renderChat(i); document.getElementById('msg'+i).value='';}
+function renderChat(i){const orders=JSON.parse(localStorage.getItem('orders')); const chatDiv=document.getElementById('chat'+i); chatDiv.innerHTML=''; orders[i].chat.forEach(c=>{chatDiv.innerHTML+=`<b>${c.from}:</b> ${c.msg} <i>(${c.time})</i><br>`;});}
+function endChat(i){const orders=JSON.parse(localStorage.getItem('orders')); orders[i].status='done'; localStorage.setItem('orders',JSON.stringify(orders)); showProfile(); if(current.nick==='gg1love') renderAdmin();}
+</script>
+
+</body>
+</html>
